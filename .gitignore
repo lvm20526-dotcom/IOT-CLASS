@@ -1,0 +1,10 @@
+# PlatformIO
+.pio/
+.vscode/
+.clang-format
+
+# Node.js
+node_modules/
+npm-debug.log
+.env
+.DS_Store
