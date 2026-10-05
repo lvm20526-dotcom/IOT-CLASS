@@ -8,19 +8,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Kết nối Neon PostgreSQL DB
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
-const MQTT_BROKER = 'mqtt://broker.hivemq.com:1883';
-const TOPIC_TELEMETRY = 'classroom/room9/telemetry';
-const TOPIC_COMMAND = 'classroom/room9/command';
+// Kết nối HiveMQ MQTT Broker
+const MQTT_BROKER = process.env.MQTT_BROKER_URL || 'mqtt://broker.hivemq.com:1883';
+const TOPIC_TELEMETRY = process.env.MQTT_TOPIC_TELEMETRY || 'classroom/room9/telemetry';
+const TOPIC_COMMAND = process.env.MQTT_TOPIC_COMMAND || 'classroom/room9/command';
 
 const mqttClient = mqtt.connect(MQTT_BROKER);
 
 mqttClient.on('connect', () => {
-    console.log('✅ Connected to HiveMQ Broker');
+    console.log('✅ Render Backend connected to HiveMQ Broker');
     mqttClient.subscribe(TOPIC_TELEMETRY);
 });
 
@@ -44,20 +46,16 @@ mqttClient.on('message', async (topic, message) => {
                 data.energyKwh || 0
             ];
             await pool.query(query, values);
-            console.log('💾 Data saved to Neon DB');
+            console.log('💾 Telemetry data saved to Neon PostgreSQL');
         } catch (err) {
-            console.error('❌ DB Error:', err.message);
+            console.error('❌ Error saving to Neon DB:', err.message);
         }
     }
 });
 
-app.get('/api/telemetry/latest', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM sensor_telemetry ORDER BY created_at DESC LIMIT 1');
-        res.json(result.rows[0] || {});
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// REST APIs
+app.get('/', (req, res) => {
+    res.send('Smart Classroom Backend API is running!');
 });
 
 app.get('/api/telemetry/history', async (req, res) => {
@@ -78,5 +76,5 @@ app.post('/api/control', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 Render Backend running on port ${PORT}`);
 });

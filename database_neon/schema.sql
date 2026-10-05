@@ -1,4 +1,4 @@
--- Neon PostgreSQL Schema for Smart Classroom IoT System
+-- CREATE TABLE FOR SENSOR TELEMETRY
 CREATE TABLE IF NOT EXISTS sensor_telemetry (
     id SERIAL PRIMARY KEY,
     device_id VARCHAR(50) DEFAULT 'ESP32_Room9',
@@ -13,4 +13,5 @@ CREATE TABLE IF NOT EXISTS sensor_telemetry (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- CREATE INDEX FOR TIME-SERIES QUERIES
 CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON sensor_telemetry(created_at DESC);

@@ -7,9 +7,9 @@
 #include <BH1750.h>
 #include <Adafruit_INA219.h>
 
-// ==================== CẤU HÌNH MẠNG & HIVEMQ ====================
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+// ==================== CẤU HÌNH WI-FI & MQTT ====================
+const char* WIFI_SSID     = "YOUR_WIFI_NAME";     // Thay tên Wi-Fi
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // Thay mật khẩu Wi-Fi
 
 const char* MQTT_BROKER    = "broker.hivemq.com";
 const int   MQTT_PORT      = 1883;
@@ -19,12 +19,12 @@ const char* TOPIC_TELEMETRY = "classroom/room9/telemetry";
 const char* TOPIC_STATUS    = "classroom/room9/status";
 const char* TOPIC_COMMAND   = "classroom/room9/command";
 
-// ==================== MAPPING CHÂN I/O ====================
+// ==================== MAPPING CHÂN I/O THEO FILE EXCEL ====================
 const int PIN_PIR         = 12; // PIR HC-SR501
 const int PIN_RADAR       = 13; // Radar RCWL-0516
 const int PIN_DHT         = 14; // DHT22
-const int PIN_RELAY_LIGHT = 25; // Relay Đèn
-const int PIN_RELAY_FAN   = 26; // Relay Quạt
+const int PIN_RELAY_LIGHT = 25; // Relay Đèn (Kênh 1)
+const int PIN_RELAY_FAN   = 26; // Relay Quạt (Kênh 2)
 
 #define DHT_TYPE DHT22
 
@@ -33,24 +33,24 @@ const float TEMP_THRESHOLD_ON   = 28.0;
 const float TEMP_HYSTERESIS_GAP  = 1.0;
 const float LUX_THRESHOLD_ON    = 100.0;
 const float LUX_HYSTERESIS_GAP   = 15.0;
-const unsigned long TIME_PIR_TIMEOUT_MS = 60000;
+const unsigned long TIMEOUT_PIR_MS = 60000; // 60s trễ giữ trạng thái phòng
 
-// Biến hệ thống
+// Biến trạng thái
 bool isOccupied = false;
 bool isAutoMode = true;
 bool lightState = false;
 bool fanState   = false;
 
-unsigned long lastMotionTime    = 0;
-unsigned long lastTelemetryTime = 0;
-unsigned long lastEnergyCalcTime = 0;
-double accumulatedEnergyKwh    = 0.0;
+unsigned long lastMotionTime      = 0;
+unsigned long lastTelemetryTime   = 0;
+unsigned long lastEnergyCalcTime  = 0;
+double accumulatedEnergyKwh      = 0.0;
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 DHT dhtSensor(PIN_DHT, DHT_TYPE);
-BH1750 lightMeter;
-Adafruit_INA219 ina219;
+BH1750 lightMeter(0x23); // Địa chỉ I2C 0x23
+Adafruit_INA219 ina219(0x40); // Địa chỉ I2C 0x40
 
 void setupWiFi();
 void connectMQTT();
@@ -74,13 +74,13 @@ void setup() {
     digitalWrite(PIN_RELAY_FAN, LOW);
 
     dhtSensor.begin();
-    Wire.begin(21, 22);
+    Wire.begin(21, 22); // I2C SDA=GPIO 21, SCL=GPIO 22
 
     if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-        Serial.println(F("[Hardware] BH1750 OK"));
+        Serial.println(F("[Hardware] BH1750 OK (Addr 0x23)"));
     }
     if (ina219.begin()) {
-        Serial.println(F("[Hardware] INA219 OK"));
+        Serial.println(F("[Hardware] INA219 OK (Addr 0x40)"));
     }
 
     setupWiFi();
@@ -133,7 +133,7 @@ void connectMQTT() {
         if (mqttClient.connect(MQTT_CLIENT_ID, TOPIC_STATUS, 1, true, "offline")) {
             mqttClient.publish(TOPIC_STATUS, "online", true);
             mqttClient.subscribe(TOPIC_COMMAND);
-            Serial.println(F("[MQTT] Connected!"));
+            Serial.println(F("[MQTT] Connected to HiveMQ Broker!"));
         }
     }
 }
@@ -163,7 +163,7 @@ void updateOccupancyState() {
     if (digitalRead(PIN_PIR) == HIGH || digitalRead(PIN_RADAR) == HIGH) {
         lastMotionTime = millis();
         isOccupied = true;
-    } else if (millis() - lastMotionTime > TIME_PIR_TIMEOUT_MS) {
+    } else if (millis() - lastMotionTime > TIMEOUT_PIR_MS) {
         isOccupied = false;
     }
 }

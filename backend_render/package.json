@@ -1,7 +1,6 @@
 {
   "name": "smart-classroom-backend",
   "version": "1.0.0",
-  "description": "Backend API for Smart Classroom IoT System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
